@@ -620,8 +620,7 @@ with st.sidebar:
         'Breast Cancer Prediction',
 
     ],
-        icons=['','activity', 'heart', 'person','person','person','person','bar-chart-fill'],
-        default_index=0)
+        icons=['activity','droplet','heart-pulse','person-walking','droplet-half','emoji-dizzy','emoji-frown','lungs','droplet','gender-female'], default_index=0)
 
 
 

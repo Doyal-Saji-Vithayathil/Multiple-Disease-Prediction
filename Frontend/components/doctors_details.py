@@ -51,7 +51,7 @@ Phone: +91-97654-32109
 Email: naveen.reddy@asterhospitals.com
 Website: https://www.asterhospitals.in/""",
 
-        "breast_cancer": """Dr. Neha Kapoor
+        "breast cancer": """Dr. Neha Kapoor
 Surgical Oncologist – Breast Cancer
 AIIMS, New Delhi
 Phone: +91-90123-45678

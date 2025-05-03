@@ -471,7 +471,7 @@ if selected == 'Lung Cancer Prediction':
             st.image(image, caption='')
             show_doctor_info("lung cancer")
             #pdf report
-            doctor_info = get_doctor_details("lung cancer")
+            doctor_info = get_doctor_details("lung_cancer")
             pdf_link = generate_pdf_report(name, "Lung Cancer", "Positive", doctor_info)
             st.markdown(pdf_link, unsafe_allow_html=True)
         else:
@@ -651,7 +651,7 @@ if selected == 'Breast Cancer Prediction':
             breast_cancer_diagnosis = 'we are really sorry to say but it seems like you have Breast Cancer.'
             image = Image.open('positive.jpg')
             st.image(image, caption='')
-            show_doctor_info("breast cancer")
+            show_doctor_info("breast_cancer")
             #pdf report
             doctor_info = get_doctor_details("breast cancer")
             pdf_link = generate_pdf_report(name, "Breast Cancer", "Positive", doctor_info)

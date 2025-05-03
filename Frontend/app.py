@@ -1,23 +1,15 @@
 import streamlit as st
-import plotly.express as px
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 import pandas as pd
 from streamlit_option_menu import option_menu
-import pickle
 from PIL import Image
-import numpy as np
-import plotly.figure_factory as ff
-import streamlit as st
 from code.DiseaseModel import DiseaseModel
 from code.helper import prepare_symptoms_array
-import seaborn as sns
-import matplotlib.pyplot as plt
+from components.doctors_details import get_doctor_details
+from components.doctors_details import show_doctor_info
+from components.generate_pdf import generate_pdf_report
+from components.patient_details import patients_data
 import joblib
-from fpdf import FPDF
-import base64
-import datetime
+
 
 # loading the models
 diabetes_model = joblib.load("models/diabetes_model.sav")
@@ -44,567 +36,6 @@ jaundice_model = joblib.load('models/liver_model.sav')
 # Load the lung cancer prediction model
 lung_cancer_model = joblib.load('models/lung_cancer_model.sav')
 
-# Doctor Info Lookup
-patients_data = [
-    {"name": "Ankit Sharma", "age": 28, "gender": "Male", "symptoms": ["itching", "skin_rash", "nodal_skin_eruptions", "dischromic _patches"]},
-    {"name": "Priya Mehta", "age": 35, "gender": "Female", "symptoms": ["continuous_sneezing", "shivering", "chills", "watering_from_eyes"]},
-    {"name": "Rohan Kapoor", "age": 42, "gender": "Male", "symptoms": ["stomach_pain", "acidity", "ulcers_on_tongue", "vomiting", "cough", "chest_pain"]},
-    {"name": "Sneha Verma", "age": 30, "gender": "Female", "symptoms": ["itching", "vomiting", "yellowish_skin", "nausea", "loss_of_appetite", "abdominal_pain", "yellowing_of_eyes"]}
-]
-
-def get_doctor_details(specialty):
-    details = {
-        "heart": """Dr. Arjun Menon\nCardiology Specialist\nApollo Hospitals, Bengaluru\nPhone: +91-98765-43210\nEmail: arjun.menon@apollohospitals.com""",
-        "parkinson": """Dr. Meera Iyer\nSenior Neurologist - Movement Disorders\nNIMHANS, Bengaluru\nPhone: +91-99887-65432\nEmail: meera.iyer@nimhans.ac.in""",
-        "lung_cancer": """Dr. Rajesh Sharma\nThoracic Oncologist\nTata Memorial Hospital, Mumbai\nPhone: +91-91234-56789\nEmail: rajesh.sharma@tmh.org.in""",
-        "liver": """Dr. Kavita Nair\nLiver Specialist\nManipal Hospitals, Hyderabad\nPhone: +91-92345-67890\nEmail: kavita.nair@manipalhospitals.com""",
-        "hepatitis": """Dr. Sandeep Varma\nHepatitis & Liver Infection Expert\nFortis Hospital, Delhi\nPhone: +91-93456-78901\nEmail: sandeep.varma@fortishealthcare.com""",
-        "jaundice": """Dr. Anjali Deshmukh\nSenior Consultant, Internal Medicine\nMax Healthcare, Pune\nPhone: +91-94567-12345\nEmail: anjali.deshmukh@maxhealthcare.com""",
-        "kidney": """Dr. Naveen Reddy\nKidney Specialist\nAster Hospitals, Kochi\nPhone: +91-97654-32109\nEmail: naveen.reddy@asterhospitals.com""",
-        "breast_cancer": """Dr. Neha Kapoor\nSurgical Oncologist - Breast Cancer\nAIIMS, New Delhi\nPhone: +91-90123-45678\nEmail: neha.kapoor@aiims.edu""",
-        "diabetes": """Dr. Ritu Joshi\nDiabetes & Hormone Specialist\nMedanta - The Medicity, Gurugram\nPhone: +91-90909-80808\nEmail: ritu.joshi@medanta.org"""
-    }
-    return details.get(specialty, "Doctor information not available.")
-
-def generate_pdf_report(name, disease, result, doctor_details):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-
-    # Title
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Disease Diagnosis Report", ln=True, align="C")
-    pdf.ln(10)
-
-    # Patient Info
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Patient Name: {name}", ln=True)
-    pdf.cell(200, 10, txt=f"Predicted Disease: {disease}", ln=True)
-    pdf.cell(200, 10, txt=f"Diagnosis Result: {result}", ln=True)
-    pdf.cell(200, 10, txt=f"Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
-
-    pdf.ln(10)
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, txt="Recommended Doctor Info:", ln=True)
-
-    pdf.set_font("Arial", size=12)
-    for line in doctor_details.split('\n'):
-        pdf.cell(200, 10, txt=line.strip(), ln=True)
-
-    # Save to memory
-    pdf_output = pdf.output(dest='S').encode('latin1')
-    b64 = base64.b64encode(pdf_output).decode()
-    href = f'<a href="data:application/octet-stream;base64,{b64}" download="diagnosis_report.pdf">📄 Download Report as PDF</a>'
-    return href
-
-
-def show_doctor_info(specialty):
-    if specialty == "heart":
-        st.markdown("### Recommended Cardiologist 💓")
-        st.markdown("""
-        **Dr. Arjun Menon**  
-        Cardiology Specialist  
-        **Apollo Hospitals, Bengaluru**  
-        📞 +91-98765-43210  
-        📧 arjun.menon@apollohospitals.com  
-        🌐 [Visit Website](https://www.apollohospitals.com/)
-        """)
-    
-    elif specialty == "parkinson":
-        st.markdown("### Recommended Neurologist 🧠")
-        st.markdown("""
-        **Dr. Meera Iyer**  
-        Senior Neurologist – Movement Disorders  
-        **NIMHANS, Bengaluru**  
-        📞 +91-99887-65432  
-        📧 meera.iyer@nimhans.ac.in  
-        🌐 [Visit NIMHANS](https://nimhans.ac.in/)
-        """)
-    
-    elif specialty == "lung_cancer":
-        st.markdown("### Recommended Oncologist 🫁")
-        st.markdown("""
-        **Dr. Rajesh Sharma**  
-        Thoracic Oncologist  
-        **Tata Memorial Hospital, Mumbai**  
-        📞 +91-91234-56789  
-        📧 rajesh.sharma@tmh.org.in  
-        🌐 [Visit TMH](https://tmc.gov.in/)
-        """)
-    
-    elif specialty == "liver":
-        st.markdown("### Recommended Hepatologist 🧬")
-        st.markdown("""
-        **Dr. Kavita Nair**  
-        Liver Specialist  
-        **Manipal Hospitals, Hyderabad**  
-        📞 +91-92345-67890  
-        📧 kavita.nair@manipalhospitals.com  
-        🌐 [Visit Manipal](https://www.manipalhospitals.com/)
-        """)
-    
-    elif specialty == "hepatitis":
-        st.markdown("### Recommended Infectious Disease Specialist 🦠")
-        st.markdown("""
-        **Dr. Sandeep Varma**  
-        Hepatitis & Liver Infection Expert  
-        **Fortis Hospital, Delhi**  
-        📞 +91-93456-78901  
-        📧 sandeep.varma@fortishealthcare.com  
-        🌐 [Visit Fortis](https://www.fortishealthcare.com/)
-        """)
-    
-    elif specialty == "jaundice":
-        st.markdown("### Recommended General Physician 🌡️")
-        st.markdown("""
-        **Dr. Anjali Deshmukh**  
-        Senior Consultant, Internal Medicine  
-        **Max Healthcare, Pune**  
-        📞 +91-94567-12345  
-        📧 anjali.deshmukh@maxhealthcare.com  
-        🌐 [Visit Max](https://www.maxhealthcare.in/)
-        """)
-    
-    elif specialty == "kidney":
-        st.markdown("### Recommended Nephrologist 🧫")
-        st.markdown("""
-        **Dr. Naveen Reddy**  
-        Kidney Specialist  
-        **Aster Hospitals, Kochi**  
-        📞 +91-97654-32109  
-        📧 naveen.reddy@asterhospitals.com  
-        🌐 [Visit Aster](https://www.asterhospitals.in/)
-        """)
-    
-    elif specialty == "breast_cancer":
-        st.markdown("### Recommended Oncologist (Breast Cancer) 🎗️")
-        st.markdown("""
-        **Dr. Neha Kapoor**  
-        Surgical Oncologist – Breast Cancer  
-        **AIIMS, New Delhi**  
-        📞 +91-90123-45678  
-        📧 neha.kapoor@aiims.edu  
-        🌐 [Visit AIIMS](https://www.aiims.edu/)
-        """)
-    
-    elif specialty == "diabetes":
-        st.markdown("### Recommended Endocrinologist 🩸")
-        st.markdown("""
-        **Dr. Ritu Joshi**  
-        Diabetes & Hormone Specialist  
-        **Medanta – The Medicity, Gurugram**  
-        📞 +91-90909-80808  
-        📧 ritu.joshi@medanta.org  
-        🌐 [Visit Medanta](https://www.medanta.org/)
-        """)
-
-    
-    elif specialty.lower() == "fungal infection":
-        st.markdown("### Recommended Dermatologist 🧴")
-        st.markdown("""
-        **Dr. Meera Kapoor**  
-        Dermatology Specialist  
-        **Fortis Hospital, Mumbai**  
-        📞 +91-91234-56789  
-        📧 meera.kapoor@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    elif specialty.lower() == "allergy":
-        st.markdown("### Recommended Allergist 🤧")
-        st.markdown("""
-        **Dr. Rakesh Sharma**  
-        Allergy & Immunology Specialist  
-        **Max Healthcare, Delhi**  
-        📞 +91-99887-66554  
-        📧 rakesh.sharma@maxhealthcare.com  
-        🌐 [Visit Website](https://www.maxhealthcare.in/)
-        """)
-    elif specialty.lower() == "gerd":
-        st.markdown("### Recommended Gastroenterologist 🍽️")
-        st.markdown("""
-        **Dr. Priya Nair**  
-        Gastroenterology Specialist  
-        **Manipal Hospitals, Bengaluru**  
-        📞 +91-98765-12345  
-        📧 priya.nair@manipalhospitals.com  
-        🌐 [Visit Website](https://www.manipalhospitals.com/)
-        """)
-    elif specialty.lower() == "chronic cholestasis":
-        st.markdown("### Recommended Hepatologist 🏥")
-        st.markdown("""
-        **Dr. Sameer Joshi**  
-        Liver & Hepatology Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-87654-32109  
-        📧 sameer.joshi@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "drug reaction":
-        st.markdown("### Recommended Clinical Pharmacologist 💊")
-        st.markdown("""
-        **Dr. Sneha Verma**  
-        Clinical Pharmacology Specialist  
-        **AIIMS, Delhi**  
-        📞 +91-90000-11122  
-        📧 sneha.verma@aiims.edu  
-        🌐 [Visit Website](https://www.aiims.edu/)
-        """)
-    elif specialty.lower() == "peptic ulcer diseae":
-        st.markdown("### Recommended Gastroenterologist 🍽️")
-        st.markdown("""
-        **Dr. Priya Nair**  
-        Gastroenterology Specialist  
-        **Manipal Hospitals, Bengaluru**  
-        📞 +91-98765-12345  
-        📧 priya.nair@manipalhospitals.com  
-        🌐 [Visit Website](https://www.manipalhospitals.com/)
-        """)
-    elif specialty.lower() == "aids":
-        st.markdown("### Recommended Infectious Disease Specialist 🦠")
-        st.markdown("""
-        **Dr. Anil Deshmukh**  
-        Infectious Disease Specialist  
-        **Jaslok Hospital, Mumbai**  
-        📞 +91-99888-22334  
-        📧 anil.deshmukh@jaslokhospital.net  
-        🌐 [Visit Website](https://www.jaslokhospital.net/)
-        """)
-   
-    elif specialty.lower() == "gastroenteritis":
-        st.markdown("### Recommended Gastroenterologist 🍽️")
-        st.markdown("""
-        **Dr. Priya Nair**  
-        Gastroenterology Specialist  
-        **Manipal Hospitals, Bengaluru**  
-        📞 +91-98765-12345  
-        📧 priya.nair@manipalhospitals.com  
-        🌐 [Visit Website](https://www.manipalhospitals.com/)
-        """)
-    elif specialty.lower() == "bronchial asthma":
-        st.markdown("### Recommended Pulmonologist 🌬️")
-        st.markdown("""
-        **Dr. Rajeev Kumar**  
-        Pulmonology Specialist  
-        **Fortis Hospital, Delhi**  
-        📞 +91-92233-44556  
-        📧 rajeev.kumar@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    elif specialty.lower() == "hypertension":
-        st.markdown("### Recommended Cardiologist 💓")
-        st.markdown("""
-        **Dr. Arjun Menon**  
-        Cardiology Specialist  
-        **Apollo Hospitals, Bengaluru**  
-        📞 +91-98765-43210  
-        📧 arjun.menon@apollohospitals.com  
-        🌐 [Visit Website](https://www.apollohospitals.com/)
-        """)
-    elif specialty.lower() == "migraine":
-        st.markdown("### Recommended Neurologist 🧠")
-        st.markdown("""
-        **Dr. Neha Sood**  
-        Neurology Specialist  
-        **Max Healthcare, Delhi**  
-        📞 +91-91122-33445  
-        📧 neha.sood@maxhealthcare.com  
-        🌐 [Visit Website](https://www.maxhealthcare.in/)
-        """)
-    elif specialty.lower() == "cervical spondylosis":
-        st.markdown("### Recommended Orthopedic Specialist 🦴")
-        st.markdown("""
-        **Dr. Vikram Singh**  
-        Orthopedics Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-90012-34567  
-        📧 vikram.singh@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "paralysis (brain hemorrhage)":
-        st.markdown("### Recommended Neurologist 🧠")
-        st.markdown("""
-        **Dr. Neha Sood**  
-        Neurology Specialist  
-        **Max Healthcare, Delhi**  
-        📞 +91-91122-33445  
-        📧 neha.sood@maxhealthcare.com  
-        🌐 [Visit Website](https://www.maxhealthcare.in/)
-        """)
-    
-    elif specialty.lower() == "malaria":
-        st.markdown("### Recommended General Physician 🩺")
-        st.markdown("""
-        **Dr. Sunita Gupta**  
-        General Medicine  
-        **AIIMS, Delhi**  
-        📞 +91-98767-89012  
-        📧 sunita.gupta@aiims.edu  
-        🌐 [Visit Website](https://www.aiims.edu/)
-        """)
-    elif specialty.lower() == "chicken pox":
-        st.markdown("### Recommended Infectious Disease Specialist 🦠")
-        st.markdown("""
-        **Dr. Anil Deshmukh**  
-        Infectious Disease Specialist  
-        **Jaslok Hospital, Mumbai**  
-        📞 +91-99888-22334  
-        📧 anil.deshmukh@jaslokhospital.net  
-        🌐 [Visit Website](https://www.jaslokhospital.net/)
-        """)
-    elif specialty.lower() == "dengue":
-        st.markdown("### Recommended General Physician 🩺")
-        st.markdown("""
-        **Dr. Sunita Gupta**  
-        General Medicine  
-        **AIIMS, Delhi**  
-        📞 +91-98767-89012  
-        📧 sunita.gupta@aiims.edu  
-        🌐 [Visit Website](https://www.aiims.edu/)
-        """)
-    elif specialty.lower() == "typhoid":
-        st.markdown("### Recommended General Physician 🩺")
-        st.markdown("""
-        **Dr. Sunita Gupta**  
-        General Medicine  
-        **AIIMS, Delhi**  
-        📞 +91-98767-89012  
-        📧 sunita.gupta@aiims.edu  
-        🌐 [Visit Website](https://www.aiims.edu/)
-        """)
-    elif specialty.lower() == "hepatitis a":
-        st.markdown("### Recommended Hepatologist 🏥")
-        st.markdown("""
-        **Dr. Sameer Joshi**  
-        Liver & Hepatology Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-87654-32109  
-        📧 sameer.joshi@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "hepatitis b":
-        st.markdown("### Recommended Hepatologist 🏥")
-        st.markdown("""
-        **Dr. Sameer Joshi**  
-        Liver & Hepatology Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-87654-32109  
-        📧 sameer.joshi@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "hepatitis c":
-        st.markdown("### Recommended Hepatologist 🏥")
-        st.markdown("""
-        **Dr. Sameer Joshi**  
-        Liver & Hepatology Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-87654-32109  
-        📧 sameer.joshi@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "hepatitis d":
-        st.markdown("### Recommended Hepatologist 🏥")
-        st.markdown("""
-        **Dr. Sameer Joshi**  
-        Liver & Hepatology Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-87654-32109  
-        📧 sameer.joshi@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "hepatitis e":
-        st.markdown("### Recommended Hepatologist 🏥")
-        st.markdown("""
-        **Dr. Sameer Joshi**  
-        Liver & Hepatology Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-87654-32109  
-        📧 sameer.joshi@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "alcoholic hepatitis":
-        st.markdown("### Recommended Hepatologist 🏥")
-        st.markdown("""
-        **Dr. Sameer Joshi**  
-        Liver & Hepatology Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-87654-32109  
-        📧 sameer.joshi@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "tuberculosis":
-        st.markdown("### Recommended Pulmonologist 🌬️")
-        st.markdown("""
-        **Dr. Rajeev Kumar**  
-        Pulmonology Specialist  
-        **Fortis Hospital, Delhi**  
-        📞 +91-92233-44556  
-        📧 rajeev.kumar@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    elif specialty.lower() == "common cold":
-        st.markdown("### Recommended General Physician 🩺")
-        st.markdown("""
-        **Dr. Sunita Gupta**  
-        General Medicine  
-        **AIIMS, Delhi**  
-        📞 +91-98767-89012  
-        📧 sunita.gupta@aiims.edu  
-        🌐 [Visit Website](https://www.aiims.edu/)
-        """)
-    elif specialty.lower() == "pneumonia":
-        st.markdown("### Recommended Pulmonologist 🌬️")
-        st.markdown("""
-        **Dr. Rajeev Kumar**  
-        Pulmonology Specialist  
-        **Fortis Hospital, Delhi**  
-        📞 +91-92233-44556  
-        📧 rajeev.kumar@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    elif specialty.lower() == "dimorphic hemmorhoids(piles)":
-        st.markdown("### Recommended General Surgeon 🏥")
-        st.markdown("""
-        **Dr. Nitin Desai**  
-        General Surgery Specialist  
-        **Apollo Hospitals, Mumbai**  
-        📞 +91-98876-54321  
-        📧 nitin.desai@apollohospitals.com  
-        🌐 [Visit Website](https://www.apollohospitals.com/)
-        """)
-    elif specialty.lower() == "heart attack":
-        st.markdown("### Recommended Cardiologist 💓")
-        st.markdown("""
-        **Dr. Arjun Menon**  
-        Cardiology Specialist  
-        **Apollo Hospitals, Bengaluru**  
-        📞 +91-98765-43210  
-        📧 arjun.menon@apollohospitals.com  
-        🌐 [Visit Website](https://www.apollohospitals.com/)
-        """)
-    elif specialty.lower() == "varicose veins":
-        st.markdown("### Recommended Vascular Surgeon 🩸")
-        st.markdown("""
-        **Dr. Shalini Bhatt**  
-        Vascular Surgery Specialist  
-        **Fortis Hospital, Delhi**  
-        📞 +91-91123-45678  
-        📧 shalini.bhatt@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    elif specialty.lower() == "hypothyroidism":
-        st.markdown("### Recommended Endocrinologist 🩺")
-        st.markdown("""
-        **Dr. Kavita Rao**  
-        Endocrinology Specialist  
-        **Apollo Hospitals, Chennai**  
-        📞 +91-98765-43211  
-        📧 kavita.rao@apollohospitals.com  
-        🌐 [Visit Website](https://www.apollohospitals.com/)
-        """)
-    elif specialty.lower() == "hyperthyroidism":
-        st.markdown("### Recommended Endocrinologist 🩺")
-        st.markdown("""
-        **Dr. Kavita Rao**  
-        Endocrinology Specialist  
-        **Apollo Hospitals, Chennai**  
-        📞 +91-98765-43211  
-        📧 kavita.rao@apollohospitals.com  
-        🌐 [Visit Website](https://www.apollohospitals.com/)
-        """)
-    elif specialty.lower() == "hypoglycemia":
-        st.markdown("### Recommended Endocrinologist 🩺")
-        st.markdown("""
-        **Dr. Kavita Rao**  
-        Endocrinology Specialist  
-        **Apollo Hospitals, Chennai**  
-        📞 +91-98765-43211  
-        📧 kavita.rao@apollohospitals.com  
-        🌐 [Visit Website](https://www.apollohospitals.com/)
-        """)
-    elif specialty.lower() == "osteoarthristis":
-        st.markdown("### Recommended Orthopedic Specialist 🦴")
-        st.markdown("""
-        **Dr. Vikram Singh**  
-        Orthopedics Specialist  
-        **Medanta, Gurugram**  
-        📞 +91-90012-34567  
-        📧 vikram.singh@medanta.org  
-        🌐 [Visit Website](https://www.medanta.org/)
-        """)
-    elif specialty.lower() == "arthritis":
-        st.markdown("### Recommended Rheumatologist 🦴")
-        st.markdown("""
-        **Dr. Alka Jain**  
-        Rheumatology Specialist  
-        **Fortis Hospital, Mumbai**  
-        📞 +91-98876-54322  
-        📧 alka.jain@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    elif specialty.lower() == "(vertigo) paroymsal positional vertigo":
-        st.markdown("### Recommended Neurologist 🧠")
-        st.markdown("""
-        **Dr. Neha Sood**  
-        Neurology Specialist  
-        **Max Healthcare, Delhi**  
-        📞 +91-91122-33445  
-        📧 neha.sood@maxhealthcare.com  
-        🌐 [Visit Website](https://www.maxhealthcare.in/)
-        """)
-    elif specialty.lower() == "acne":
-        st.markdown("### Recommended Dermatologist 🧴")
-        st.markdown("""
-        **Dr. Meera Kapoor**  
-        Dermatology Specialist  
-        **Fortis Hospital, Mumbai**  
-        📞 +91-91234-56789  
-        📧 meera.kapoor@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    elif specialty.lower() == "urinary tract infection":
-        st.markdown("### Recommended Urologist 🚻")
-        st.markdown("""
-        **Dr. Suresh Patel**  
-        Urology Specialist  
-        **Apollo Hospitals, Ahmedabad**  
-        📞 +91-98765-11223  
-        📧 suresh.patel@apollohospitals.com  
-        🌐 [Visit Website](https://www.apollohospitals.com/)
-        """)
-    elif specialty.lower() == "psoriasis":
-        st.markdown("### Recommended Dermatologist 🧴")
-        st.markdown("""
-        **Dr. Meera Kapoor**  
-        Dermatology Specialist  
-        **Fortis Hospital, Mumbai**  
-        📞 +91-91234-56789  
-        📧 meera.kapoor@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    elif specialty.lower() == "impetigo":
-        st.markdown("### Recommended Dermatologist 🧴")
-        st.markdown("""
-        **Dr. Meera Kapoor**  
-        Dermatology Specialist  
-        **Fortis Hospital, Mumbai**  
-        📞 +91-91234-56789  
-        📧 meera.kapoor@fortishealth.com  
-        🌐 [Visit Website](https://www.fortishealthcare.com/)
-        """)
-    else:
-        st.markdown("### Recommended General Physician 🩺")
-        st.markdown("""
-        **Dr. Sunita Gupta**  
-        General Medicine  
-        **AIIMS, Delhi**  
-        📞 +91-98767-89012  
-        📧 sunita.gupta@aiims.edu  
-        🌐 [Visit Website](https://www.aiims.edu/)
-        """)
-
-    
-
-
 # sidebar
 with st.sidebar:
     selected = option_menu('Multiple Disease Prediction', [
@@ -620,9 +51,7 @@ with st.sidebar:
         'Breast Cancer Prediction',
 
     ],
-        icons=['activity','droplet','heart-pulse','person-walking','droplet-half','emoji-dizzy','emoji-frown','lungs','droplet','gender-female'], default_index=0)
-
-
+        icons=['activity','droplet','heart-pulse','person','droplet-half','emoji-dizzy','emoji-frown','lungs','droplet','gender-female'], default_index=0)
 
 
 # multiple disease prediction
@@ -634,16 +63,19 @@ if selected == 'Disease Prediction':
     # Title
     st.write('# Disease Prediction')
        # Patient selection dropdown
-    patient_names = ["Manual Entry"] + [p["name"] for p in patients_data]
-    selected_patient = st.selectbox("Select a Patient", patient_names)
+    st.write('Enter Symptoms or Select a Patient from the Records')
+    method=["Manual Entry","Select from Patients"]
+    selected_method = st.selectbox("Select Method", method)
+    
 
     
-    if selected_patient == "Manual Entry":
+    if selected_method == "Manual Entry":
         symptoms = st.multiselect('What are your symptoms?', options=disease_model.all_symptoms)      
         
         
-        
-    else:
+    else:    
+        patient_names = [p["name"] for p in patients_data]
+        selected_patient = st.selectbox("Select a Patient", patient_names)       
         patient = next(p for p in patients_data if p["name"] == selected_patient)
         st.write(f"**Name:** {patient['name']}")
         st.write(f"**Age:** {patient['age']}")
@@ -728,8 +160,8 @@ if selected == 'Diabetes Prediction':  # pagetitle
             image = Image.open('positive.jpg')
             st.image(image, caption='')
             show_doctor_info("diabetes")
-            # PDF report
             doctor_info = get_doctor_details("diabetes")
+            #pdf report 
             pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
             st.markdown(pdf_link, unsafe_allow_html=True)
 
@@ -854,6 +286,10 @@ if selected == 'Heart disease Prediction':
             image = Image.open('positive.jpg')
             st.image(image, caption='')
             show_doctor_info("heart") 
+             #pdf report 
+            doctor_info = get_doctor_details("heart")
+            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
         else:
             heart_dig = "Congratulation, You don't have Heart Disease."
             image = Image.open('negative.jpg')
@@ -933,6 +369,10 @@ if selected == 'Parkison Prediction':
             image = Image.open('positive.jpg')
             st.image(image, caption='')
             show_doctor_info("parkinson")
+             #pdf report 
+            doctor_info = get_doctor_details("parkinson")
+            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
 
         else:
             parkinson_dig = "Congratulation , You don't have Parkinson disease"
@@ -1037,6 +477,10 @@ if selected == 'Lung Cancer Prediction':
             image = Image.open('positive.jpg')
             st.image(image, caption='')
             show_doctor_info("lung_cancer")
+             #pdf report 
+            doctor_info = get_doctor_details("lung_cancer")
+            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
             
         else:
             cancer_result = "The model predicts no significant risk of Lung Cancer."
@@ -1101,6 +545,10 @@ if selected == 'Liver Prediction':  # pagetitle
             st.image(image, caption='')
             liver_dig = "we are really sorry to say but it seems like you have liver disease."
             show_doctor_info("liver")
+             #pdf report 
+            doctor_info = get_doctor_details("liver")
+            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
         else:
             image = Image.open('negative.jpg')
             st.image(image, caption='')
@@ -1180,6 +628,10 @@ if selected == 'Hepatitis Prediction':
             image = Image.open('positive.jpg')
             st.image(image, caption='')
             show_doctor_info("hepatitis")
+             #pdf report 
+            doctor_info = get_doctor_details("hepatitis")
+            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
         else:
             hepatitis_result = 'Congratulations, you do not have Hepatitis.'
             image = Image.open('negative.jpg')
@@ -1239,6 +691,10 @@ if selected == 'Jaundice Prediction':  # pagetitle
             st.image(image, caption='')
             jaundice_dig = "we are really sorry to say but it seems like you have Jaundice."
             show_doctor_info("jaundice")
+             #pdf report 
+            doctor_info = get_doctor_details("jaundice")
+            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
         else:
             image = Image.open('negative.jpg')
             st.image(image, caption='')
@@ -1246,11 +702,6 @@ if selected == 'Jaundice Prediction':  # pagetitle
         st.success(name+'  ' + jaundice_dig)
 
 
-
-
-
-from sklearn.preprocessing import LabelEncoder
-import joblib
 
 
 # Chronic Kidney Disease Prediction Page
@@ -1369,6 +820,10 @@ if selected == 'Chronic Kidney Prediction':
             st.image(image, caption='')
             kidney_prediction_dig = "we are really sorry to say but it seems like you have kidney disease."
             show_doctor_info("kidney")
+             #pdf report 
+            doctor_info = get_doctor_details("kidney")
+            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
         else:
             image = Image.open('negative.jpg')
             st.image(image, caption='')
@@ -1484,6 +939,10 @@ if selected == 'Breast Cancer Prediction':
             st.image(image, caption='')
             breast_cancer_result = "The model predicts that you have Breast Cancer."
             show_doctor_info("breast_cancer")
+             #pdf report 
+            doctor_info = get_doctor_details("breast_cancer")
+            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
         else:
             image = Image.open('negative.jpg')
             st.image(image, caption='')

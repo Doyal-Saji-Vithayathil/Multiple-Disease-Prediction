@@ -33,12 +33,9 @@ liver_model = joblib.load('models/liver_model.sav')
 # Load the liver model for jaundice prediction
 jaundice_model = joblib.load('models/liver_model.sav')
 
-# Load the lung cancer prediction model
-lung_cancer_model = joblib.load('models/lung_cancer_model.sav')
-
 # sidebar
 with st.sidebar:
-    selected = option_menu('Multiple Disease Prediction', [
+    selected = option_menu('HealthLens', [
         'Disease Prediction',
         'Diabetes Prediction',
         'Heart disease Prediction',
@@ -261,6 +258,154 @@ if selected == 'Diabetes Prediction':  # pagetitle
             st.image(image, caption='')
         st.success(name+'   ' + diabetes_dig)
 
+if selected == 'Parkison Prediction':
+    st.title("Parkison prediction")
+    image = Image.open('p1.jpg')
+    st.image(image, caption='parkinsons disease')
+  # parameters
+#    name	MDVP:Fo(Hz)	MDVP:Fhi(Hz)	MDVP:Flo(Hz)	MDVP:Jitter(%)	MDVP:Jitter(Abs)	MDVP:RAP	MDVP:PPQ	Jitter:DDP	MDVP:Shimmer	MDVP:Shimmer(dB)	Shimmer:APQ3	Shimmer:APQ5	MDVP:APQ	Shimmer:DDA	NHR	HNR	status	RPDE	DFA	spread1	spread2	D2	PPE
+   # change the variables according to the dataset used in the model
+    name = st.text_input("Name:")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        MDVP = st.number_input("MDVP:Fo(Hz)")
+    with col2:
+        MDVPFIZ = st.number_input("MDVP:Fhi(Hz)")
+    with col3:
+        MDVPFLO = st.number_input("MDVP:Flo(Hz)")
+    with col1:
+        MDVPJITTER = st.number_input("MDVP:Jitter(%)")
+    with col2:
+        MDVPJitterAbs = st.number_input("MDVP:Jitter(Abs)")
+    with col3:
+        MDVPRAP = st.number_input("MDVP:RAP")
+
+    with col2:
+
+        MDVPPPQ = st.number_input("MDVP:PPQ ")
+    with col3:
+        JitterDDP = st.number_input("Jitter:DDP")
+    with col1:
+        MDVPShimmer = st.number_input("MDVP:Shimmer")
+    with col2:
+        MDVPShimmer_dB = st.number_input("MDVP:Shimmer(dB)")
+    with col3:
+        Shimmer_APQ3 = st.number_input("Shimmer:APQ3")
+    with col1:
+        ShimmerAPQ5 = st.number_input("Shimmer:APQ5")
+    with col2:
+        MDVP_APQ = st.number_input("MDVP:APQ")
+    with col3:
+        ShimmerDDA = st.number_input("Shimmer:DDA")
+    with col1:
+        NHR = st.number_input("NHR")
+    with col2:
+        HNR = st.number_input("HNR")
+  
+    with col2:
+        RPDE = st.number_input("RPDE")
+    with col3:
+        DFA = st.number_input("DFA")
+    with col1:
+        spread1 = st.number_input("spread1")
+    with col1:
+        spread2 = st.number_input("spread2")
+    with col3:
+        D2 = st.number_input("D2")
+    with col1:
+        PPE = st.number_input("PPE")
+
+    # code for prediction
+    parkinson_dig = ''
+    
+    # button
+    if st.button("Parkinson test result"):
+        parkinson_prediction=[[]]
+        # change the parameters according to the model
+        parkinson_prediction = parkinson_model.predict([[MDVP, MDVPFIZ, MDVPFLO, MDVPJITTER, MDVPJitterAbs, MDVPRAP, MDVPPPQ, JitterDDP, MDVPShimmer,MDVPShimmer_dB, Shimmer_APQ3, ShimmerAPQ5, MDVP_APQ, ShimmerDDA, NHR, HNR,  RPDE, DFA, spread1, spread2, D2, PPE]])
+
+        if parkinson_prediction[0] == 1:
+            parkinson_dig = 'we are really sorry to say but it seems like you have Parkinson disease'
+            image = Image.open('positive.jpg')
+            st.image(image, caption='')
+            show_doctor_info("parkinson")
+            doctor_info = get_doctor_details("parkinson")
+            #pdf report
+            pdf_link = generate_pdf_report(name, "Parkinson", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
+
+        else:
+            parkinson_dig = "Congratulation , You don't have Parkinson disease"
+            image = Image.open('negative.jpg')
+            st.image(image, caption='')
+        st.success(name+'  ' + parkinson_dig)
+
+
+
+# Liver prediction page
+if selected == 'Liver Prediction':  # pagetitle
+    st.title("Liver disease prediction")
+    image = Image.open('liver.jpg')
+    st.image(image, caption='Liver disease prediction.')
+    # columns
+    # no inputs from the user
+# st.write(info.astype(int).info())
+    name = st.text_input("Name:")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        Sex=0
+        display = ("male", "female")
+        options = list(range(len(display)))
+        value = st.selectbox("Gender", options, format_func=lambda x: display[x])
+        if value == "male":
+            Sex = 0
+        elif value == "female":
+            Sex = 1
+    with col2:
+        age = st.number_input("Entre your age") # 2 
+    with col3:
+        Total_Bilirubin = st.number_input("Entre your Total_Bilirubin") # 3
+    with col1:
+        Direct_Bilirubin = st.number_input("Entre your Direct_Bilirubin")# 4
+
+    with col2:
+        Alkaline_Phosphotase = st.number_input("Entre your Alkaline_Phosphotase") # 5
+    with col3:
+        Alamine_Aminotransferase = st.number_input("Entre your Alamine_Aminotransferase") # 6
+    with col1:
+        Aspartate_Aminotransferase = st.number_input("Entre your Aspartate_Aminotransferase") # 7
+    with col2:
+        Total_Protiens = st.number_input("Entre your Total_Protiens")# 8
+    with col3:
+        Albumin = st.number_input("Entre your Albumin") # 9
+    with col1:
+        Albumin_and_Globulin_Ratio = st.number_input("Entre your Albumin_and_Globulin_Ratio") # 10 
+    # code for prediction
+    liver_dig = ''
+
+    # button
+    if st.button("Liver test result"):
+        liver_prediction=[[]]
+        liver_prediction = liver_model.predict([[Sex,age,Total_Bilirubin,Direct_Bilirubin,Alkaline_Phosphotase,Alamine_Aminotransferase,Aspartate_Aminotransferase,Total_Protiens,Albumin,Albumin_and_Globulin_Ratio]])
+
+        # after the prediction is done if the value in the list at index is 0 is 1 then the person is diabetic
+        if liver_prediction[0] == 1:
+            image = Image.open('positive.jpg')
+            st.image(image, caption='')
+            liver_dig = "we are really sorry to say but it seems like you have liver disease."
+            show_doctor_info("liver")
+            doctor_info = get_doctor_details("Liver")
+            #pdf report
+            pdf_link = generate_pdf_report(name, "Liver Disease", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
+        else:
+            image = Image.open('negative.jpg')
+            st.image(image, caption='')
+            liver_dig = "Congratulation , You don't have liver disease."
+        st.success(name+'  ' + liver_dig)
+
+
 
 # Heart prediction page
 if selected == 'Heart disease Prediction':
@@ -374,11 +519,11 @@ if selected == 'Heart disease Prediction':
             show_doctor_info("heart")
              #pdf report
             doctor_info = get_doctor_details("heart")
-            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            pdf_link = generate_pdf_report(name, "Heart Disease", "Positive", doctor_info)
             st.markdown(pdf_link, unsafe_allow_html=True)
 
         else:
-            diabetes_dig = 'Congratulation,You are not diabetic'
+            diabetes_dig = 'Congratulation,You are not having Heart Disease.'
             image = Image.open('negative.jpg')
             st.image(image, caption='')
         st.success(name+'   ' + diabetes_dig)
@@ -481,10 +626,154 @@ if selected == 'Lung Cancer Prediction':
         st.success(name + '  ' + cancer_result)
 
 
+# Hepatitis prediction page
+if selected == 'Hepatitis Prediction':
+    st.title("Hepatitis Prediction")
+    image = Image.open('h.png')
+    st.image(image, caption='Hepatitis Prediction')
+
+    # Columns
+    # No inputs from the user
+    name = st.text_input("Name:")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        age = st.number_input("Enter your age")  # 2
+    with col2:
+        sex = st.selectbox("Gender", ["Male", "Female"])
+        sex = 1 if sex == "Male" else 2
+    with col3:
+        total_bilirubin = st.number_input("Enter your Total Bilirubin")  # 3
+
+    with col1:
+        direct_bilirubin = st.number_input("Enter your Direct Bilirubin")  # 4
+    with col2:
+        alkaline_phosphatase = st.number_input("Enter your Alkaline Phosphatase")  # 5
+    with col3:
+        alamine_aminotransferase = st.number_input("Enter your Alamine Aminotransferase")  # 6
+
+    with col1:
+        aspartate_aminotransferase = st.number_input("Enter your Aspartate Aminotransferase")  # 7
+    with col2:
+        total_proteins = st.number_input("Enter your Total Proteins")  # 8
+    with col3:
+        albumin = st.number_input("Enter your Albumin")  # 9
+
+    with col1:
+        albumin_and_globulin_ratio = st.number_input("Enter your Albumin and Globulin Ratio")  # 10
+
+    with col2:
+        your_ggt_value = st.number_input("Enter your GGT value")  # Add this line
+    with col3:
+        your_prot_value = st.number_input("Enter your PROT value")  # Add this line
+
+    # Code for prediction
+    hepatitis_result = ''
+
+    # Button
+    if st.button("Predict Hepatitis"):
+        # Create a DataFrame with user inputs
+        user_data = pd.DataFrame({
+            'Age': [age],
+            'Sex': [sex],
+            'ALB': [total_bilirubin],  # Correct the feature name
+            'ALP': [direct_bilirubin],  # Correct the feature name
+            'ALT': [alkaline_phosphatase],  # Correct the feature name
+            'AST': [alamine_aminotransferase],
+            'BIL': [aspartate_aminotransferase],  # Correct the feature name
+            'CHE': [total_proteins],  # Correct the feature name
+            'CHOL': [albumin],  # Correct the feature name
+            'CREA': [albumin_and_globulin_ratio],  # Correct the feature name
+            'GGT': [your_ggt_value],  # Replace 'your_ggt_value' with the actual value
+            'PROT': [your_prot_value]  # Replace 'your_prot_value' with the actual value
+        })
+
+        # Perform prediction
+        hepatitis_prediction = hepatitis_model.predict(user_data)
+        # Display result
+        if hepatitis_prediction[0] == 1:
+            hepatitis_result = "We are really sorry to say but it seems like you have Hepatitis."
+            image = Image.open('positive.jpg')
+            st.image(image, caption='')
+            show_doctor_info("hepatitis")
+            #pdf report
+            doctor_info = get_doctor_details("hepatitis")
+            pdf_link = generate_pdf_report(name, "Hepatitis", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
+        else:
+            hepatitis_result = 'Congratulations, you do not have Hepatitis.'
+            image = Image.open('negative.jpg')
+            st.image(image, caption='')
+
+        st.success(name + ' ' + hepatitis_result)
+
+
+
+
+# jaundice prediction page
+if selected == 'Jaundice Prediction':  # pagetitle
+    st.title("Jaundice disease prediction")
+    image = Image.open('j.jpg')
+    st.image(image, caption='Jaundice disease prediction')
+    # columns
+    # no inputs from the user
+# st.write(info.astype(int).info())
+    name = st.text_input("Name:")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        age = st.number_input("Entre your age   ") # 2 
+    with col2:
+        Sex=0
+        display = ("male", "female")
+        options = list(range(len(display)))
+        value = st.selectbox("Gender", options, format_func=lambda x: display[x])
+        if value == "male":
+            Sex = 0
+        elif value == "female":
+            Sex = 1
+    with col3:
+        Total_Bilirubin = st.number_input("Entre your Total_Bilirubin") # 3
+    with col1:
+        Direct_Bilirubin = st.number_input("Entre your Direct_Bilirubin")# 4
+
+    with col2:
+        Alkaline_Phosphotase = st.number_input("Entre your Alkaline_Phosphotase") # 5
+    with col3:
+        Alamine_Aminotransferase = st.number_input("Entre your Alamine_Aminotransferase") # 6
+    with col1:
+        Total_Protiens = st.number_input("Entre your Total_Protiens")# 8
+    with col2:
+        Albumin = st.number_input("Entre your Albumin") # 9 
+    # code for prediction
+    jaundice_dig = ''
+
+    # button
+    if st.button("Jaundice test result"):
+        jaundice_prediction=[[]]
+        jaundice_prediction = jaundice_model.predict([[age,Sex,Total_Bilirubin,Direct_Bilirubin,Alkaline_Phosphotase,Alamine_Aminotransferase,Total_Protiens,Albumin]])
+
+        # after the prediction is done if the value in the list at index is 0 is 1 then the person is diabetic
+        if jaundice_prediction[0] == 1:
+            image = Image.open('positive.jpg')
+            st.image(image, caption='')
+            jaundice_dig = "we are really sorry to say but it seems like you have Jaundice."
+            show_doctor_info("jaundice")
+            #pdf report
+            doctor_info = get_doctor_details("jaundice")
+            pdf_link = generate_pdf_report(name, "Jaundice", "Positive", doctor_info)
+            st.markdown(pdf_link, unsafe_allow_html=True)
+        else:
+            image = Image.open('negative.jpg')
+            st.image(image, caption='')
+            jaundice_dig = "Congratulation , You don't have Jaundice."
+        st.success(name+'  ' + jaundice_dig)
+
+
 # Chronic Kidney Disease Prediction page
 if selected == 'Chronic Kidney Prediction':
     st.title("Chronic Kidney Disease Prediction")
-    image = Image.open('j.jpg')
+    image = Image.open('kidney.png')
     st.image(image, caption='Chronic Kidney Disease Prediction')
 
     # Load the pre-trained model

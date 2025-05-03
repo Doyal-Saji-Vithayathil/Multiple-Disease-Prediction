@@ -4,10 +4,10 @@ from streamlit_option_menu import option_menu
 from PIL import Image
 from code.DiseaseModel import DiseaseModel
 from code.helper import prepare_symptoms_array
-from components.doctors_details import get_doctor_details
-from components.doctors_details import show_doctor_info
+from components.doctors_details import get_doctor_details, show_doctor_info
 from components.generate_pdf import generate_pdf_report
 from components.patient_details import patients_data
+from components.generate_pdf import create_pdf
 import joblib
 
 
@@ -31,7 +31,7 @@ hepatitis_model = joblib.load('models/hepititisc_model.sav')
 liver_model = joblib.load('models/liver_model.sav')
 
 # Load the liver model for jaundice prediction
-jaundice_model = joblib.load('models/liver_model.sav') 
+jaundice_model = joblib.load('models/liver_model.sav')
 
 # Load the lung cancer prediction model
 lung_cancer_model = joblib.load('models/lung_cancer_model.sav')
@@ -55,10 +55,26 @@ with st.sidebar:
 
 
 # multiple disease prediction
-if selected == 'Disease Prediction': 
+if selected == 'Disease Prediction':
     # Create disease class and load ML model
     disease_model = DiseaseModel()
     disease_model.load_xgboost('model/xgboost_model.json')
+
+    if "pdf_ready" not in st.session_state:
+        st.session_state.pdf_ready = False
+    if "pdf_bytes" not in st.session_state:
+        st.session_state.pdf_bytes = None
+    if "selected_patient_data" not in st.session_state:
+        st.session_state.selected_patient_data = None
+    if "manual_patient_details" not in st.session_state:
+        st.session_state.manual_patient_details = {"name": "", "age": 0, "gender": ""}
+    if "prediction" not in st.session_state:
+        st.session_state.prediction = None
+    if "prob" not in st.session_state:
+        st.session_state.prob = None
+    if "precautions" not in st.session_state:
+        st.session_state.precautions = None
+
 
     # Title
     st.write('# Disease Prediction')
@@ -66,51 +82,125 @@ if selected == 'Disease Prediction':
     st.write('Enter Symptoms or Select a Patient from the Records')
     method=["Manual Entry","Select from Patients"]
     selected_method = st.selectbox("Select Method", method)
-    
 
-    
+
     if selected_method == "Manual Entry":
-        symptoms = st.multiselect('What are your symptoms?', options=disease_model.all_symptoms)      
+        st.subheader("Patient Details for Report")
+        name = st.text_input("Name", value=st.session_state.manual_patient_details["name"])
+        age = st.number_input("Age", min_value=0, max_value=120, value=st.session_state.manual_patient_details["age"])
+        gender = st.radio("Gender", options=["Male", "Female", "Other"], index=["Male", "Female", "Other"].index(st.session_state.manual_patient_details["gender"]) if st.session_state.manual_patient_details["gender"] else 0)
+        st.session_state.manual_patient_details = {"name": name, "age": age, "gender": gender}
+
+        symptoms = st.multiselect('What are your symptoms?', options=disease_model.all_symptoms)
+        st.session_state.selected_patient_data = None # Clear patient data if manual entry is selected
+
+        ready = name.strip() and age > 0 and gender and len(symptoms) > 0
+
         
-        
-    else:    
+
+        if st.session_state.get("pdf_ready", False) and st.session_state.get("pdf_bytes") is not None:
+            st.download_button(
+                label="Download PDF Report",
+                data=st.session_state.pdf_bytes,
+                file_name="medical_report.pdf",
+                mime="application/octet-stream",
+                key="manual_download"
+            )
+
+
+    else:
         patient_names = [p["name"] for p in patients_data]
-        selected_patient = st.selectbox("Select a Patient", patient_names)       
-        patient = next(p for p in patients_data if p["name"] == selected_patient)
+        selected_patient_name = st.selectbox("Select a Patient", patient_names)
+        patient = next(p for p in patients_data if p["name"] == selected_patient_name)
+        st.session_state.selected_patient_data = patient # Store patient data in session state
         st.write(f"**Name:** {patient['name']}")
         st.write(f"**Age:** {patient['age']}")
         st.write(f"**Gender:** {patient['gender']}")
         st.write(f"**Symptoms:** {', '.join(patient['symptoms'])}")
         symptoms = patient['symptoms']
+        st.session_state.manual_patient_details = {"name": "", "age": 0, "gender": ""} # Clear manual data if patient is selected
+
 
     X = prepare_symptoms_array(symptoms)
-   
 
 
     # Trigger XGBoost model
-    if st.button('Predict'): 
+    if st.button('Predict'):
         if not symptoms:
             st.warning('Please select at least one symptom to predict.')
 
-        else:   
+        else:
         # Run the model with the python script
-        
+
             prediction, prob = disease_model.predict(X)
+            st.session_state.prediction = prediction # Store prediction in session state
+            st.session_state.prob = prob # Store probability in session state
             st.write(f'## Disease: {prediction} with {prob*100:.2f}% probability')
 
 
-            tab1, tab2,tab3= st.tabs(["Description", "Precautions","Doctor Recommendation"])
+            tab1, tab2,tab3,tab4= st.tabs(["Description", "Precautions","Doctor Recommendation","Report Download"])
 
             with tab1:
                 st.write(disease_model.describe_predicted_disease())
 
             with tab2:
                 precautions = disease_model.predicted_disease_precautions()
+                st.session_state.precautions = precautions # Store precautions in session state
                 for i in range(4):
                     st.write(f'{i+1}. {precautions[i]}')
             with tab3:
-                show_doctor_info(prediction)                       
-                
+                show_doctor_info(prediction)
+
+            with tab4:
+                st.write("Download Report")
+
+                # Removed manual entry download button from here as it's now in the manual entry section
+
+                if selected_method == "Select from Patients" and st.session_state.selected_patient_data:
+                    # Patient selection mode
+                    patient_for_pdf = st.session_state.selected_patient_data
+                    ready = patient_for_pdf["name"].strip() and patient_for_pdf["age"] > 0 and patient_for_pdf["gender"] and len(patient_for_pdf["symptoms"]) > 0
+                    if ready:
+                        st.download_button(
+                            label="Download PDF Report",
+                            data=create_pdf(
+                                patient_for_pdf,
+                                prediction, # Use local prediction here as it's within the Predict button scope
+                                prob,       # Use local prob here as it's within the Predict button scope
+                                disease_model.describe_predicted_disease(),
+                                precautions, # Use local precautions here as it's within the Predict button scope
+                                get_doctor_details(prediction) # Use local prediction here
+                            ),
+                            file_name="medical_report.pdf",
+                            mime="application/octet-stream",
+                            key="patient_download"
+                        )
+                else:
+                    with st.form(key="manual_pdf_form"):
+                        submitted = st.form_submit_button("Prepare PDF")
+                        if submitted:
+                            if not ready:
+                                st.error("Please fill all fields and select at least one symptom.")
+                            elif st.session_state.prediction is None or st.session_state.prob is None or st.session_state.precautions is None:
+                                st.error("Please run the prediction first by clicking the 'Predict' button.")
+                        else:
+                            st.session_state.pdf_bytes = create_pdf(
+                                {
+                                    "name": name,
+                                    "age": age,
+                                    "gender": gender,
+                                    "symptoms": symptoms
+                                },
+                            st.session_state.prediction,
+                            st.session_state.prob,
+                            disease_model.describe_predicted_disease(),
+                            st.session_state.precautions,
+                            get_doctor_details(st.session_state.prediction)
+                        )
+                        st.session_state.pdf_ready = True
+                        
+
+
 
 
 # Diabetes prediction page
@@ -161,7 +251,7 @@ if selected == 'Diabetes Prediction':  # pagetitle
             st.image(image, caption='')
             show_doctor_info("diabetes")
             doctor_info = get_doctor_details("diabetes")
-            #pdf report 
+            #pdf report
             pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
             st.markdown(pdf_link, unsafe_allow_html=True)
 
@@ -169,8 +259,7 @@ if selected == 'Diabetes Prediction':  # pagetitle
             diabetes_dig = 'Congratulation,You are not diabetic'
             image = Image.open('negative.jpg')
             st.image(image, caption='')
-        st.success(name+'   ' + diabetes_dig)            
-
+        st.success(name+'   ' + diabetes_dig)
 
 
 # Heart prediction page
@@ -214,7 +303,7 @@ if selected == 'Heart disease Prediction':
     with col2:
 
         chol = st.number_input("Serum Cholestrol")
-    
+
     with col3:
         restecg=0
         display = ("normal","having ST-T wave abnormality","left ventricular hyperthrophy")
@@ -230,7 +319,7 @@ if selected == 'Heart disease Prediction':
     with col1:
         exang=0
         thalach = st.number_input("Max Heart Rate Achieved")
-   
+
     with col2:
         oldpeak = st.number_input("ST depression induced by exercise relative to rest")
     with col3:
@@ -271,114 +360,28 @@ if selected == 'Heart disease Prediction':
             fbs=0
     # code for prediction
     heart_dig = ''
-    
+
 
     # button
     if st.button("Heart test result"):
         heart_prediction=[[]]
-        # change the parameters according to the model
-        
-        # b=np.array(a, dtype=float)
         heart_prediction = heart_model.predict([[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal]])
 
         if heart_prediction[0] == 1:
             heart_dig = 'we are really sorry to say but it seems like you have Heart Disease. '
             image = Image.open('positive.jpg')
             st.image(image, caption='')
-            show_doctor_info("heart") 
-             #pdf report 
+            show_doctor_info("heart")
+             #pdf report
             doctor_info = get_doctor_details("heart")
             pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
             st.markdown(pdf_link, unsafe_allow_html=True)
-        else:
-            heart_dig = "Congratulation, You don't have Heart Disease."
-            image = Image.open('negative.jpg')
-            st.image(image, caption='')
-        st.success(name +'  ' + heart_dig)
-
-
-
-if selected == 'Parkison Prediction':
-    st.title("Parkison prediction")
-    image = Image.open('p1.jpg')
-    st.image(image, caption='parkinsons disease')
-  # parameters
-#    name	MDVP:Fo(Hz)	MDVP:Fhi(Hz)	MDVP:Flo(Hz)	MDVP:Jitter(%)	MDVP:Jitter(Abs)	MDVP:RAP	MDVP:PPQ	Jitter:DDP	MDVP:Shimmer	MDVP:Shimmer(dB)	Shimmer:APQ3	Shimmer:APQ5	MDVP:APQ	Shimmer:DDA	NHR	HNR	status	RPDE	DFA	spread1	spread2	D2	PPE
-   # change the variables according to the dataset used in the model
-    name = st.text_input("Name:")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        MDVP = st.number_input("MDVP:Fo(Hz)")
-    with col2:
-        MDVPFIZ = st.number_input("MDVP:Fhi(Hz)")
-    with col3:
-        MDVPFLO = st.number_input("MDVP:Flo(Hz)")
-    with col1:
-        MDVPJITTER = st.number_input("MDVP:Jitter(%)")
-    with col2:
-        MDVPJitterAbs = st.number_input("MDVP:Jitter(Abs)")
-    with col3:
-        MDVPRAP = st.number_input("MDVP:RAP")
-
-    with col2:
-
-        MDVPPPQ = st.number_input("MDVP:PPQ ")
-    with col3:
-        JitterDDP = st.number_input("Jitter:DDP")
-    with col1:
-        MDVPShimmer = st.number_input("MDVP:Shimmer")
-    with col2:
-        MDVPShimmer_dB = st.number_input("MDVP:Shimmer(dB)")
-    with col3:
-        Shimmer_APQ3 = st.number_input("Shimmer:APQ3")
-    with col1:
-        ShimmerAPQ5 = st.number_input("Shimmer:APQ5")
-    with col2:
-        MDVP_APQ = st.number_input("MDVP:APQ")
-    with col3:
-        ShimmerDDA = st.number_input("Shimmer:DDA")
-    with col1:
-        NHR = st.number_input("NHR")
-    with col2:
-        HNR = st.number_input("HNR")
-  
-    with col2:
-        RPDE = st.number_input("RPDE")
-    with col3:
-        DFA = st.number_input("DFA")
-    with col1:
-        spread1 = st.number_input("spread1")
-    with col1:
-        spread2 = st.number_input("spread2")
-    with col3:
-        D2 = st.number_input("D2")
-    with col1:
-        PPE = st.number_input("PPE")
-
-    # code for prediction
-    parkinson_dig = ''
-    
-    # button
-    if st.button("Parkinson test result"):
-        parkinson_prediction=[[]]
-        # change the parameters according to the model
-        parkinson_prediction = parkinson_model.predict([[MDVP, MDVPFIZ, MDVPFLO, MDVPJITTER, MDVPJitterAbs, MDVPRAP, MDVPPPQ, JitterDDP, MDVPShimmer,MDVPShimmer_dB, Shimmer_APQ3, ShimmerAPQ5, MDVP_APQ, ShimmerDDA, NHR, HNR,  RPDE, DFA, spread1, spread2, D2, PPE]])
-
-        if parkinson_prediction[0] == 1:
-            parkinson_dig = 'we are really sorry to say but it seems like you have Parkinson disease'
-            image = Image.open('positive.jpg')
-            st.image(image, caption='')
-            show_doctor_info("parkinson")
-             #pdf report 
-            doctor_info = get_doctor_details("parkinson")
-            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
-            st.markdown(pdf_link, unsafe_allow_html=True)
 
         else:
-            parkinson_dig = "Congratulation , You don't have Parkinson disease"
+            diabetes_dig = 'Congratulation,You are not diabetic'
             image = Image.open('negative.jpg')
             st.image(image, caption='')
-        st.success(name+'  ' + parkinson_dig)
+        st.success(name+'   ' + diabetes_dig)
 
 
 
@@ -438,514 +441,223 @@ if selected == 'Lung Cancer Prediction':
     cancer_result = ''
 
     # Button
-    if st.button("Predict Lung Cancer"):
-        # Create a DataFrame with user inputs
-        user_data = pd.DataFrame({
-            'GENDER': [gender],
+    if st.button("Lung Cancer Test Result"):
+        # Prepare input data for prediction
+        input_data = pd.DataFrame({
+            'GENDER': [1 if gender == 'Female' else 0],
             'AGE': [age],
-            'SMOKING': [smoking],
-            'YELLOW_FINGERS': [yellow_fingers],
-            'ANXIETY': [anxiety],
-            'PEER_PRESSURE': [peer_pressure],
-            'CHRONICDISEASE': [chronic_disease],
-            'FATIGUE': [fatigue],
-            'ALLERGY': [allergy],
-            'WHEEZING': [wheezing],
-            'ALCOHOLCONSUMING': [alcohol_consuming],
-            'COUGHING': [coughing],
-            'SHORTNESSOFBREATH': [shortness_of_breath],
-            'SWALLOWINGDIFFICULTY': [swallowing_difficulty],
-            'CHESTPAIN': [chest_pain]
+            'SMOKING': [2 if smoking == 'YES' else 1],
+            'YELLOW_FINGERS': [2 if yellow_fingers == 'YES' else 1],
+            'ANXIETY': [2 if anxiety == 'YES' else 1],
+            'PEER_PRESSURE': [2 if peer_pressure == 'YES' else 1],
+            'CHRONIC DISEASE': [2 if chronic_disease == 'YES' else 1],
+            'FATIGUE ': [2 if fatigue == 'YES' else 1],
+            'ALLERGY ': [2 if allergy == 'YES' else 1],
+            'WHEEZING': [2 if wheezing == 'YES' else 1],
+            'ALCOHOL CONSUMING': [2 if alcohol_consuming == 'YES' else 1],
+            'COUGHING': [2 if coughing == 'YES' else 1],
+            'SHORTNESS OF BREATH': [2 if shortness_of_breath == 'YES' else 1],
+            'SWALLOWING DIFFICULTY': [2 if swallowing_difficulty == 'YES' else 1],
+            'CHEST PAIN': [2 if chest_pain == 'YES' else 1]
         })
 
-        # Map string values to numeric
-        user_data.replace({'NO': 1, 'YES': 2}, inplace=True)
-
-        # Strip leading and trailing whitespaces from column names
-        user_data.columns = user_data.columns.str.strip()
-
-        # Convert columns to numeric where necessary
-        numeric_columns = ['AGE', 'FATIGUE', 'ALLERGY', 'ALCOHOLCONSUMING', 'COUGHING', 'SHORTNESSOFBREATH']
-        user_data[numeric_columns] = user_data[numeric_columns].apply(pd.to_numeric, errors='coerce')
-
-        # Perform prediction
-        cancer_prediction = lung_cancer_model.predict(user_data)
+        # Make prediction
+        lung_cancer_prediction = lung_cancer_model.predict(input_data)
 
         # Display result
-        if cancer_prediction[0] == 'YES':
-            cancer_result = "The model predicts that there is a risk of Lung Cancer."
+        if lung_cancer_prediction[0] == 2:
+            cancer_result = 'we are really sorry to say but it seems like you have Lung Cancer.'
             image = Image.open('positive.jpg')
             st.image(image, caption='')
-            show_doctor_info("lung_cancer")
-             #pdf report 
-            doctor_info = get_doctor_details("lung_cancer")
-            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
-            st.markdown(pdf_link, unsafe_allow_html=True)
-            
-        else:
-            cancer_result = "The model predicts no significant risk of Lung Cancer."
-            image = Image.open('negative.jpg')
-            st.image(image, caption='')
-
-        st.success(name + ' ' + cancer_result)
-
-
-
-
-# Liver prediction page
-if selected == 'Liver Prediction':  # pagetitle
-    st.title("Liver disease prediction")
-    image = Image.open('liver.jpg')
-    st.image(image, caption='Liver disease prediction.')
-    # columns
-    # no inputs from the user
-# st.write(info.astype(int).info())
-    name = st.text_input("Name:")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        Sex=0
-        display = ("male", "female")
-        options = list(range(len(display)))
-        value = st.selectbox("Gender", options, format_func=lambda x: display[x])
-        if value == "male":
-            Sex = 0
-        elif value == "female":
-            Sex = 1
-    with col2:
-        age = st.number_input("Entre your age") # 2 
-    with col3:
-        Total_Bilirubin = st.number_input("Entre your Total_Bilirubin") # 3
-    with col1:
-        Direct_Bilirubin = st.number_input("Entre your Direct_Bilirubin")# 4
-
-    with col2:
-        Alkaline_Phosphotase = st.number_input("Entre your Alkaline_Phosphotase") # 5
-    with col3:
-        Alamine_Aminotransferase = st.number_input("Entre your Alamine_Aminotransferase") # 6
-    with col1:
-        Aspartate_Aminotransferase = st.number_input("Entre your Aspartate_Aminotransferase") # 7
-    with col2:
-        Total_Protiens = st.number_input("Entre your Total_Protiens")# 8
-    with col3:
-        Albumin = st.number_input("Entre your Albumin") # 9
-    with col1:
-        Albumin_and_Globulin_Ratio = st.number_input("Entre your Albumin_and_Globulin_Ratio") # 10 
-    # code for prediction
-    liver_dig = ''
-
-    # button
-    if st.button("Liver test result"):
-        liver_prediction=[[]]
-        liver_prediction = liver_model.predict([[Sex,age,Total_Bilirubin,Direct_Bilirubin,Alkaline_Phosphotase,Alamine_Aminotransferase,Aspartate_Aminotransferase,Total_Protiens,Albumin,Albumin_and_Globulin_Ratio]])
-
-        # after the prediction is done if the value in the list at index is 0 is 1 then the person is diabetic
-        if liver_prediction[0] == 1:
-            image = Image.open('positive.jpg')
-            st.image(image, caption='')
-            liver_dig = "we are really sorry to say but it seems like you have liver disease."
-            show_doctor_info("liver")
-             #pdf report 
-            doctor_info = get_doctor_details("liver")
-            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            show_doctor_info("lung cancer")
+            #pdf report
+            doctor_info = get_doctor_details("lung cancer")
+            pdf_link = generate_pdf_report(name, "Lung Cancer", "Positive", doctor_info)
             st.markdown(pdf_link, unsafe_allow_html=True)
         else:
+            cancer_result = "Congratulation, You don't have Lung Cancer."
             image = Image.open('negative.jpg')
             st.image(image, caption='')
-            liver_dig = "Congratulation , You don't have liver disease."
-        st.success(name+'  ' + liver_dig)
+        st.success(name + '  ' + cancer_result)
 
 
-
-
-# Hepatitis prediction page
-if selected == 'Hepatitis Prediction':
-    st.title("Hepatitis Prediction")
-    image = Image.open('h.png')
-    st.image(image, caption='Hepatitis Prediction')
-
-    # Columns
-    # No inputs from the user
-    name = st.text_input("Name:")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        age = st.number_input("Enter your age")  # 2
-    with col2:
-        sex = st.selectbox("Gender", ["Male", "Female"])
-        sex = 1 if sex == "Male" else 2
-    with col3:
-        total_bilirubin = st.number_input("Enter your Total Bilirubin")  # 3
-
-    with col1:
-        direct_bilirubin = st.number_input("Enter your Direct Bilirubin")  # 4
-    with col2:
-        alkaline_phosphatase = st.number_input("Enter your Alkaline Phosphatase")  # 5
-    with col3:
-        alamine_aminotransferase = st.number_input("Enter your Alamine Aminotransferase")  # 6
-
-    with col1:
-        aspartate_aminotransferase = st.number_input("Enter your Aspartate Aminotransferase")  # 7
-    with col2:
-        total_proteins = st.number_input("Enter your Total Proteins")  # 8
-    with col3:
-        albumin = st.number_input("Enter your Albumin")  # 9
-
-    with col1:
-        albumin_and_globulin_ratio = st.number_input("Enter your Albumin and Globulin Ratio")  # 10
-
-    with col2:
-        your_ggt_value = st.number_input("Enter your GGT value")  # Add this line
-    with col3:
-        your_prot_value = st.number_input("Enter your PROT value")  # Add this line
-
-    # Code for prediction
-    hepatitis_result = ''
-
-    # Button
-    if st.button("Predict Hepatitis"):
-        # Create a DataFrame with user inputs
-        user_data = pd.DataFrame({
-            'Age': [age],
-            'Sex': [sex],
-            'ALB': [total_bilirubin],  # Correct the feature name
-            'ALP': [direct_bilirubin],  # Correct the feature name
-            'ALT': [alkaline_phosphatase],  # Correct the feature name
-            'AST': [alamine_aminotransferase],
-            'BIL': [aspartate_aminotransferase],  # Correct the feature name
-            'CHE': [total_proteins],  # Correct the feature name
-            'CHOL': [albumin],  # Correct the feature name
-            'CREA': [albumin_and_globulin_ratio],  # Correct the feature name
-            'GGT': [your_ggt_value],  # Replace 'your_ggt_value' with the actual value
-            'PROT': [your_prot_value]  # Replace 'your_prot_value' with the actual value
-        })
-
-        # Perform prediction
-        hepatitis_prediction = hepatitis_model.predict(user_data)
-        # Display result
-        if hepatitis_prediction[0] == 1:
-            hepatitis_result = "We are really sorry to say but it seems like you have Hepatitis."
-            image = Image.open('positive.jpg')
-            st.image(image, caption='')
-            show_doctor_info("hepatitis")
-             #pdf report 
-            doctor_info = get_doctor_details("hepatitis")
-            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
-            st.markdown(pdf_link, unsafe_allow_html=True)
-        else:
-            hepatitis_result = 'Congratulations, you do not have Hepatitis.'
-            image = Image.open('negative.jpg')
-            st.image(image, caption='')
-
-        st.success(name + ' ' + hepatitis_result)
-
-
-
-
-# jaundice prediction page
-if selected == 'Jaundice Prediction':  # pagetitle
-    st.title("Jaundice disease prediction")
-    image = Image.open('j.jpg')
-    st.image(image, caption='Jaundice disease prediction')
-    # columns
-    # no inputs from the user
-# st.write(info.astype(int).info())
-    name = st.text_input("Name:")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        age = st.number_input("Entre your age   ") # 2 
-    with col2:
-        Sex=0
-        display = ("male", "female")
-        options = list(range(len(display)))
-        value = st.selectbox("Gender", options, format_func=lambda x: display[x])
-        if value == "male":
-            Sex = 0
-        elif value == "female":
-            Sex = 1
-    with col3:
-        Total_Bilirubin = st.number_input("Entre your Total_Bilirubin") # 3
-    with col1:
-        Direct_Bilirubin = st.number_input("Entre your Direct_Bilirubin")# 4
-
-    with col2:
-        Alkaline_Phosphotase = st.number_input("Entre your Alkaline_Phosphotase") # 5
-    with col3:
-        Alamine_Aminotransferase = st.number_input("Entre your Alamine_Aminotransferase") # 6
-    with col1:
-        Total_Protiens = st.number_input("Entre your Total_Protiens")# 8
-    with col2:
-        Albumin = st.number_input("Entre your Albumin") # 9 
-    # code for prediction
-    jaundice_dig = ''
-
-    # button
-    if st.button("Jaundice test result"):
-        jaundice_prediction=[[]]
-        jaundice_prediction = jaundice_model.predict([[age,Sex,Total_Bilirubin,Direct_Bilirubin,Alkaline_Phosphotase,Alamine_Aminotransferase,Total_Protiens,Albumin]])
-
-        # after the prediction is done if the value in the list at index is 0 is 1 then the person is diabetic
-        if jaundice_prediction[0] == 1:
-            image = Image.open('positive.jpg')
-            st.image(image, caption='')
-            jaundice_dig = "we are really sorry to say but it seems like you have Jaundice."
-            show_doctor_info("jaundice")
-             #pdf report 
-            doctor_info = get_doctor_details("jaundice")
-            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
-            st.markdown(pdf_link, unsafe_allow_html=True)
-        else:
-            image = Image.open('negative.jpg')
-            st.image(image, caption='')
-            jaundice_dig = "Congratulation , You don't have Jaundice."
-        st.success(name+'  ' + jaundice_dig)
-
-
-
-
-# Chronic Kidney Disease Prediction Page
+# Chronic Kidney Disease Prediction page
 if selected == 'Chronic Kidney Prediction':
     st.title("Chronic Kidney Disease Prediction")
-    # Add the image for Chronic Kidney Disease prediction if needed
+    image = Image.open('j.jpg')
+    st.image(image, caption='Chronic Kidney Disease Prediction')
+
+    # Load the pre-trained model
+    # chronic_disease_model = joblib.load('chronic_model.sav')
+
+    # Columns for input fields
     name = st.text_input("Name:")
-    # Columns
-    # No inputs from the user
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        age = st.slider("Enter your age", 1, 100, 25)  # 2
+        age = st.number_input('Age')
     with col2:
-        bp = st.slider("Enter your Blood Pressure", 50, 200, 120)  # Add your own ranges
+        bp = st.number_input('Blood Pressure')
     with col3:
-        sg = st.slider("Enter your Specific Gravity", 1.0, 1.05, 1.02)  # Add your own ranges
-
+        sg = st.number_input('Specific Gravity')
     with col1:
-        al = st.slider("Enter your Albumin", 0, 5, 0)  # Add your own ranges
+        al = st.number_input('Albumin')
     with col2:
-        su = st.slider("Enter your Sugar", 0, 5, 0)  # Add your own ranges
+        su = st.number_input('Sugar')
     with col3:
-        rbc = st.selectbox("Red Blood Cells", ["Normal", "Abnormal"])
-        rbc = 1 if rbc == "Normal" else 0
-
+        rbc = st.number_input('Red Blood Cells')
     with col1:
-        pc = st.selectbox("Pus Cells", ["Normal", "Abnormal"])
-        pc = 1 if pc == "Normal" else 0
+        pc = st.number_input('Pus Cell')
     with col2:
-        pcc = st.selectbox("Pus Cell Clumps", ["Present", "Not Present"])
-        pcc = 1 if pcc == "Present" else 0
+        pcc = st.number_input('Pus Cell Clumps')
     with col3:
-        ba = st.selectbox("Bacteria", ["Present", "Not Present"])
-        ba = 1 if ba == "Present" else 0
-
+        ba = st.number_input('Bacteria')
     with col1:
-        bgr = st.slider("Enter your Blood Glucose Random", 50, 200, 120)  # Add your own ranges
+        bgr = st.number_input('Blood Glucose Random')
     with col2:
-        bu = st.slider("Enter your Blood Urea", 10, 200, 60)  # Add your own ranges
+        bu = st.number_input('Blood Urea')
     with col3:
-        sc = st.slider("Enter your Serum Creatinine", 0, 10, 3)  # Add your own ranges
-
+        sc = st.number_input('Serum Creatinine')
     with col1:
-        sod = st.slider("Enter your Sodium", 100, 200, 140)  # Add your own ranges
+        sod = st.number_input('Sodium')
     with col2:
-        pot = st.slider("Enter your Potassium", 2, 7, 4)  # Add your own ranges
+        pot = st.number_input('Potassium')
     with col3:
-        hemo = st.slider("Enter your Hemoglobin", 3, 17, 12)  # Add your own ranges
-
+        hemo = st.number_input('Hemoglobin')
     with col1:
-        pcv = st.slider("Enter your Packed Cell Volume", 20, 60, 40)  # Add your own ranges
+        pcv = st.number_input('Packed Cell Volume')
     with col2:
-        wc = st.slider("Enter your White Blood Cell Count", 2000, 20000, 10000)  # Add your own ranges
+        wc = st.number_input('White Blood Cell Count')
     with col3:
-        rc = st.slider("Enter your Red Blood Cell Count", 2, 8, 4)  # Add your own ranges
-
+        rc = st.number_input('Red Blood Cell Count')
     with col1:
-        htn = st.selectbox("Hypertension", ["Yes", "No"])
-        htn = 1 if htn == "Yes" else 0
+        htn = st.number_input('Hypertension')
     with col2:
-        dm = st.selectbox("Diabetes Mellitus", ["Yes", "No"])
-        dm = 1 if dm == "Yes" else 0
+        dm = st.number_input('Diabetes Mellitus')
     with col3:
-        cad = st.selectbox("Coronary Artery Disease", ["Yes", "No"])
-        cad = 1 if cad == "Yes" else 0
-
+        cad = st.number_input('Coronary Artery Disease')
     with col1:
-        appet = st.selectbox("Appetite", ["Good", "Poor"])
-        appet = 1 if appet == "Good" else 0
+        appet = st.number_input('Appetite')
     with col2:
-        pe = st.selectbox("Pedal Edema", ["Yes", "No"])
-        pe = 1 if pe == "Yes" else 0
+        pe = st.number_input('Pedal Edema')
     with col3:
-        ane = st.selectbox("Anemia", ["Yes", "No"])
-        ane = 1 if ane == "Yes" else 0
+        ane = st.number_input('Anemia')
 
-    # Code for prediction
-    kidney_result = ''
+    # Code for Prediction
+    chronic_disease_diagnosis = ''
 
-    # Button
-    if st.button("Predict Chronic Kidney Disease"):
-        # Create a DataFrame with user inputs
-        user_input = pd.DataFrame({
-            'age': [age],
-            'bp': [bp],
-            'sg': [sg],
-            'al': [al],
-            'su': [su],
-            'rbc': [rbc],
-            'pc': [pc],
-            'pcc': [pcc],
-            'ba': [ba],
-            'bgr': [bgr],
-            'bu': [bu],
-            'sc': [sc],
-            'sod': [sod],
-            'pot': [pot],
-            'hemo': [hemo],
-            'pcv': [pcv],
-            'wc': [wc],
-            'rc': [rc],
-            'htn': [htn],
-            'dm': [dm],
-            'cad': [cad],
-            'appet': [appet],
-            'pe': [pe],
-            'ane': [ane]
-        })
+    # Creating a button for Prediction
+    if st.button('Chronic Kidney Disease Test Result'):
+        chronic_disease_prediction = chronic_disease_model.predict([[age, bp, sg, al, su, rbc, pc, pcc, ba, bgr, bu, sc, sod, pot, hemo, pcv, wc, rc, htn, dm, cad, appet, pe, ane]])
 
-        # Perform prediction
-        kidney_prediction = chronic_disease_model.predict(user_input)
-        # Display result
-        if kidney_prediction[0] == 1:
+        if chronic_disease_prediction[0] == 1:
+            chronic_disease_diagnosis = 'we are really sorry to say but it seems like you have Chronic Kidney Disease.'
             image = Image.open('positive.jpg')
             st.image(image, caption='')
-            kidney_prediction_dig = "we are really sorry to say but it seems like you have kidney disease."
-            show_doctor_info("kidney")
-             #pdf report 
-            doctor_info = get_doctor_details("kidney")
-            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            show_doctor_info("chronic kidney disease")
+            #pdf report
+            doctor_info = get_doctor_details("chronic kidney disease")
+            pdf_link = generate_pdf_report(name, "Chronic Kidney Disease", "Positive", doctor_info)
             st.markdown(pdf_link, unsafe_allow_html=True)
         else:
+            chronic_disease_diagnosis = 'Congratulation, You do not have Chronic Kidney Disease.'
             image = Image.open('negative.jpg')
             st.image(image, caption='')
-            kidney_prediction_dig = "Congratulation , You don't have kidney disease."
-        st.success(name+'  ' + kidney_prediction_dig)
+        st.success(name + '  ' + chronic_disease_diagnosis)
 
 
-
-# Breast Cancer Prediction Page
+# Breast Cancer Prediction page
 if selected == 'Breast Cancer Prediction':
     st.title("Breast Cancer Prediction")
+    image = Image.open('h.png')
+    st.image(image, caption='Breast Cancer Prediction')
+
+    # Load the pre-trained model
+    # breast_cancer_model = joblib.load('breast_cancer.sav')
+
+    # Columns for input fields
     name = st.text_input("Name:")
-    # Columns
-    # No inputs from the user
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        radius_mean = st.slider("Enter your Radius Mean", 6.0, 30.0, 15.0)
-        texture_mean = st.slider("Enter your Texture Mean", 9.0, 40.0, 20.0)
-        perimeter_mean = st.slider("Enter your Perimeter Mean", 43.0, 190.0, 90.0)
-
+        mean_radius = st.number_input('mean radius')
     with col2:
-        area_mean = st.slider("Enter your Area Mean", 143.0, 2501.0, 750.0)
-        smoothness_mean = st.slider("Enter your Smoothness Mean", 0.05, 0.25, 0.1)
-        compactness_mean = st.slider("Enter your Compactness Mean", 0.02, 0.3, 0.15)
-
+        mean_texture = st.number_input('mean texture')
     with col3:
-        concavity_mean = st.slider("Enter your Concavity Mean", 0.0, 0.5, 0.2)
-        concave_points_mean = st.slider("Enter your Concave Points Mean", 0.0, 0.2, 0.1)
-        symmetry_mean = st.slider("Enter your Symmetry Mean", 0.1, 1.0, 0.5)
-
+        mean_perimeter = st.number_input('mean perimeter')
     with col1:
-        fractal_dimension_mean = st.slider("Enter your Fractal Dimension Mean", 0.01, 0.1, 0.05)
-        radius_se = st.slider("Enter your Radius SE", 0.1, 3.0, 1.0)
-        texture_se = st.slider("Enter your Texture SE", 0.2, 2.0, 1.0)
-
+        mean_area = st.number_input('mean area')
     with col2:
-        perimeter_se = st.slider("Enter your Perimeter SE", 1.0, 30.0, 10.0)
-        area_se = st.slider("Enter your Area SE", 6.0, 500.0, 150.0)
-        smoothness_se = st.slider("Enter your Smoothness SE", 0.001, 0.03, 0.01)
-
+        mean_smoothness = st.number_input('mean smoothness')
     with col3:
-        compactness_se = st.slider("Enter your Compactness SE", 0.002, 0.2, 0.1)
-        concavity_se = st.slider("Enter your Concavity SE", 0.0, 0.05, 0.02)
-        concave_points_se = st.slider("Enter your Concave Points SE", 0.0, 0.03, 0.01)
-
+        mean_compactness = st.number_input('mean compactness')
     with col1:
-        symmetry_se = st.slider("Enter your Symmetry SE", 0.1, 1.0, 0.5)
-        fractal_dimension_se = st.slider("Enter your Fractal Dimension SE", 0.01, 0.1, 0.05)
-
+        mean_concavity = st.number_input('mean concavity')
     with col2:
-        radius_worst = st.slider("Enter your Radius Worst", 7.0, 40.0, 20.0)
-        texture_worst = st.slider("Enter your Texture Worst", 12.0, 50.0, 25.0)
-        perimeter_worst = st.slider("Enter your Perimeter Worst", 50.0, 250.0, 120.0)
-
+        mean_concave_points = st.number_input('mean concave points')
     with col3:
-        area_worst = st.slider("Enter your Area Worst", 185.0, 4250.0, 1500.0)
-        smoothness_worst = st.slider("Enter your Smoothness Worst", 0.07, 0.3, 0.15)
-        compactness_worst = st.slider("Enter your Compactness Worst", 0.03, 0.6, 0.3)
-
+        mean_symmetry = st.number_input('mean symmetry')
     with col1:
-        concavity_worst = st.slider("Enter your Concavity Worst", 0.0, 0.8, 0.4)
-        concave_points_worst = st.slider("Enter your Concave Points Worst", 0.0, 0.2, 0.1)
-        symmetry_worst = st.slider("Enter your Symmetry Worst", 0.1, 1.0, 0.5)
-
+        mean_fractal_dimension = st.number_input('mean fractal dimension')
     with col2:
-        fractal_dimension_worst = st.slider("Enter your Fractal Dimension Worst", 0.01, 0.2, 0.1)
+        radius_error = st.number_input('radius error')
+    with col3:
+        texture_error = st.number_input('texture error')
+    with col1:
+        perimeter_error = st.number_input('perimeter error')
+    with col2:
+        area_error = st.number_input('area error')
+    with col3:
+        smoothness_error = st.number_input('smoothness error')
+    with col1:
+        compactness_error = st.number_input('compactness error')
+    with col2:
+        concavity_error = st.number_input('concavity error')
+    with col3:
+        concave_points_error = st.number_input('concave points error')
+    with col1:
+        symmetry_error = st.number_input('symmetry error')
+    with col2:
+        fractal_dimension_error = st.number_input('fractal dimension error')
+    with col3:
+        worst_radius = st.number_input('worst radius')
+    with col1:
+        worst_texture = st.number_input('worst texture')
+    with col2:
+        worst_perimeter = st.number_input('worst perimeter')
+    with col3:
+        worst_area = st.number_input('worst area')
+    with col1:
+        worst_smoothness = st.number_input('worst smoothness')
+    with col2:
+        worst_compactness = st.number_input('worst compactness')
+    with col3:
+        worst_concavity = st.number_input('worst concavity')
+    with col1:
+        worst_concave_points = st.number_input('worst concave points')
+    with col2:
+        worst_symmetry = st.number_input('worst symmetry')
+    with col3:
+        worst_fractal_dimension = st.number_input('worst fractal dimension')
 
-        # Code for prediction
-    breast_cancer_result = ''
+    # Code for Prediction
+    breast_cancer_diagnosis = ''
 
-    # Button
-    if st.button("Predict Breast Cancer"):
-        # Create a DataFrame with user inputs
-        user_input = pd.DataFrame({
-            'radius_mean': [radius_mean],
-            'texture_mean': [texture_mean],
-            'perimeter_mean': [perimeter_mean],
-            'area_mean': [area_mean],
-            'smoothness_mean': [smoothness_mean],
-            'compactness_mean': [compactness_mean],
-            'concavity_mean': [concavity_mean],
-            'concave points_mean': [concave_points_mean],  # Update this line
-            'symmetry_mean': [symmetry_mean],
-            'fractal_dimension_mean': [fractal_dimension_mean],
-            'radius_se': [radius_se],
-            'texture_se': [texture_se],
-            'perimeter_se': [perimeter_se],
-            'area_se': [area_se],
-            'smoothness_se': [smoothness_se],
-            'compactness_se': [compactness_se],
-            'concavity_se': [concavity_se],
-            'concave points_se': [concave_points_se],  # Update this line
-            'symmetry_se': [symmetry_se],
-            'fractal_dimension_se': [fractal_dimension_se],
-            'radius_worst': [radius_worst],
-            'texture_worst': [texture_worst],
-            'perimeter_worst': [perimeter_worst],
-            'area_worst': [area_worst],
-            'smoothness_worst': [smoothness_worst],
-            'compactness_worst': [compactness_worst],
-            'concavity_worst': [concavity_worst],
-            'concave points_worst': [concave_points_worst],  # Update this line
-            'symmetry_worst': [symmetry_worst],
-            'fractal_dimension_worst': [fractal_dimension_worst],
-        })
+    # Creating a button for Prediction
+    if st.button('Breast Cancer Test Result'):
+        breast_cancer_prediction = breast_cancer_model.predict([[mean_radius, mean_texture, mean_perimeter, mean_area, mean_smoothness, mean_compactness, mean_concavity, mean_concave_points, mean_symmetry, mean_fractal_dimension, radius_error, texture_error, perimeter_error, area_error, smoothness_error, compactness_error, concavity_error, concave_points_error, symmetry_error, fractal_dimension_error, worst_radius, worst_texture, worst_perimeter, worst_area, worst_smoothness, worst_compactness, worst_concavity, worst_concave_points, worst_symmetry, worst_fractal_dimension]])
 
-        # Perform prediction
-        breast_cancer_prediction = breast_cancer_model.predict(user_input)
-        # Display result
-        if breast_cancer_prediction[0] == 1:
+        if breast_cancer_prediction[0] == 0:
+            breast_cancer_diagnosis = 'we are really sorry to say but it seems like you have Breast Cancer.'
             image = Image.open('positive.jpg')
             st.image(image, caption='')
-            breast_cancer_result = "The model predicts that you have Breast Cancer."
-            show_doctor_info("breast_cancer")
-             #pdf report 
-            doctor_info = get_doctor_details("breast_cancer")
-            pdf_link = generate_pdf_report(name, "Diabetes", "Positive", doctor_info)
+            show_doctor_info("breast cancer")
+            #pdf report
+            doctor_info = get_doctor_details("breast cancer")
+            pdf_link = generate_pdf_report(name, "Breast Cancer", "Positive", doctor_info)
             st.markdown(pdf_link, unsafe_allow_html=True)
         else:
+            breast_cancer_diagnosis = 'Congratulation, You do not have Breast Cancer.'
             image = Image.open('negative.jpg')
             st.image(image, caption='')
-            breast_cancer_result = "The model predicts that you don't have Breast Cancer."
-
-        st.success(breast_cancer_result)
+        st.success(name + '  ' + breast_cancer_diagnosis)

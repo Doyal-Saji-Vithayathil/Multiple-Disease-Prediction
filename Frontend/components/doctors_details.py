@@ -2,17 +2,344 @@ import streamlit as st
 
 def get_doctor_details(specialty):
     details = {
-        "heart": """Dr. Arjun Menon\nCardiology Specialist\nApollo Hospitals, Bengaluru\nPhone: +91-98765-43210\nEmail: arjun.menon@apollohospitals.com""",
-        "parkinson": """Dr. Meera Iyer\nSenior Neurologist - Movement Disorders\nNIMHANS, Bengaluru\nPhone: +91-99887-65432\nEmail: meera.iyer@nimhans.ac.in""",
-        "lung_cancer": """Dr. Rajesh Sharma\nThoracic Oncologist\nTata Memorial Hospital, Mumbai\nPhone: +91-91234-56789\nEmail: rajesh.sharma@tmh.org.in""",
-        "liver": """Dr. Kavita Nair\nLiver Specialist\nManipal Hospitals, Hyderabad\nPhone: +91-92345-67890\nEmail: kavita.nair@manipalhospitals.com""",
-        "hepatitis": """Dr. Sandeep Varma\nHepatitis & Liver Infection Expert\nFortis Hospital, Delhi\nPhone: +91-93456-78901\nEmail: sandeep.varma@fortishealthcare.com""",
-        "jaundice": """Dr. Anjali Deshmukh\nSenior Consultant, Internal Medicine\nMax Healthcare, Pune\nPhone: +91-94567-12345\nEmail: anjali.deshmukh@maxhealthcare.com""",
-        "kidney": """Dr. Naveen Reddy\nKidney Specialist\nAster Hospitals, Kochi\nPhone: +91-97654-32109\nEmail: naveen.reddy@asterhospitals.com""",
-        "breast_cancer": """Dr. Neha Kapoor\nSurgical Oncologist - Breast Cancer\nAIIMS, New Delhi\nPhone: +91-90123-45678\nEmail: neha.kapoor@aiims.edu""",
-        "diabetes": """Dr. Ritu Joshi\nDiabetes & Hormone Specialist\nMedanta - The Medicity, Gurugram\nPhone: +91-90909-80808\nEmail: ritu.joshi@medanta.org"""
+        "heart": """Dr. Arjun Menon
+Cardiology Specialist
+Apollo Hospitals, Bengaluru
+Phone: +91-98765-43210
+Email: arjun.menon@apollohospitals.com
+Website: https://www.apollohospitals.com/""",
+
+        "parkinson": """Dr. Meera Iyer
+Senior Neurologist – Movement Disorders
+NIMHANS, Bengaluru
+Phone: +91-99887-65432
+Email: meera.iyer@nimhans.ac.in
+Website: https://nimhans.ac.in/""",
+
+        "lung_cancer": """Dr. Rajesh Sharma
+Thoracic Oncologist
+Tata Memorial Hospital, Mumbai
+Phone: +91-91234-56789
+Email: rajesh.sharma@tmh.org.in
+Website: https://tmc.gov.in/""",
+
+        "liver": """Dr. Kavita Nair
+Liver Specialist
+Manipal Hospitals, Hyderabad
+Phone: +91-92345-67890
+Email: kavita.nair@manipalhospitals.com
+Website: https://www.manipalhospitals.com/""",
+
+        "hepatitis": """Dr. Sandeep Varma
+Hepatitis & Liver Infection Expert
+Fortis Hospital, Delhi
+Phone: +91-93456-78901
+Email: sandeep.varma@fortishealthcare.com
+Website: https://www.fortishealthcare.com/""",
+
+        "jaundice": """Dr. Anjali Deshmukh
+Senior Consultant, Internal Medicine
+Max Healthcare, Pune
+Phone: +91-94567-12345
+Email: anjali.deshmukh@maxhealthcare.com
+Website: https://www.maxhealthcare.in/""",
+
+        "kidney": """Dr. Naveen Reddy
+Kidney Specialist
+Aster Hospitals, Kochi
+Phone: +91-97654-32109
+Email: naveen.reddy@asterhospitals.com
+Website: https://www.asterhospitals.in/""",
+
+        "breast_cancer": """Dr. Neha Kapoor
+Surgical Oncologist – Breast Cancer
+AIIMS, New Delhi
+Phone: +91-90123-45678
+Email: neha.kapoor@aiims.edu
+Website: https://www.aiims.edu/""",
+
+        "diabetes": """Dr. Ritu Joshi
+Diabetes & Hormone Specialist
+Medanta – The Medicity, Gurugram
+Phone: +91-90909-80808
+Email: ritu.joshi@medanta.org
+Website: https://www.medanta.org/""",
+
+        "fungal infection": """Dr. Meera Kapoor
+Dermatology Specialist
+Fortis Hospital, Mumbai
+Phone: +91-91234-56789
+Email: meera.kapoor@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
+
+        "allergy": """Dr. Rakesh Sharma
+Allergy & Immunology Specialist
+Max Healthcare, Delhi
+Phone: +91-99887-66554
+Email: rakesh.sharma@maxhealthcare.com
+Website: https://www.maxhealthcare.in/""",
+
+        "gerd": """Dr. Priya Nair
+Gastroenterology Specialist
+Manipal Hospitals, Bengaluru
+Phone: +91-98765-12345
+Email: priya.nair@manipalhospitals.com
+Website: https://www.manipalhospitals.com/""",
+
+        "chronic cholestasis": """Dr. Sameer Joshi
+Liver & Hepatology Specialist
+Medanta, Gurugram
+Phone: +91-87654-32109
+Email: sameer.joshi@medanta.org
+Website: https://www.medanta.org/""",
+
+        "drug reaction": """Dr. Sneha Verma
+Clinical Pharmacology Specialist
+AIIMS, Delhi
+Phone: +91-90000-11122
+Email: sneha.verma@aiims.edu
+Website: https://www.aiims.edu/""",
+
+        "peptic ulcer diseae": """Dr. Priya Nair
+Gastroenterology Specialist
+Manipal Hospitals, Bengaluru
+Phone: +91-98765-12345
+Email: priya.nair@manipalhospitals.com
+Website: https://www.manipalhospitals.com/""",
+
+        "aids": """Dr. Anil Deshmukh
+Infectious Disease Specialist
+Jaslok Hospital, Mumbai
+Phone: +91-99888-22334
+Email: anil.deshmukh@jaslokhospital.net
+Website: https://www.jaslokhospital.net/""",
+
+        "gastroenteritis": """Dr. Priya Nair
+Gastroenterology Specialist
+Manipal Hospitals, Bengaluru
+Phone: +91-98765-12345
+Email: priya.nair@manipalhospitals.com
+Website: https://www.manipalhospitals.com/""",
+
+        "bronchial asthma": """Dr. Rajeev Kumar
+Pulmonology Specialist
+Fortis Hospital, Delhi
+Phone: +91-92233-44556
+Email: rajeev.kumar@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
+
+        "hypertension": """Dr. Arjun Menon
+Cardiology Specialist
+Apollo Hospitals, Bengaluru
+Phone: +91-98765-43210
+Email: arjun.menon@apollohospitals.com
+Website: https://www.apollohospitals.com/""",
+
+        "migraine": """Dr. Neha Sood
+Neurology Specialist
+Max Healthcare, Delhi
+Phone: +91-91122-33445
+Email: neha.sood@maxhealthcare.com
+Website: https://www.maxhealthcare.in/""",
+
+        "cervical spondylosis": """Dr. Vikram Singh
+Orthopedics Specialist
+Medanta, Gurugram
+Phone: +91-90012-34567
+Email: vikram.singh@medanta.org
+Website: https://www.medanta.org/""",
+
+        "paralysis (brain hemorrhage)": """Dr. Neha Sood
+Neurology Specialist
+Max Healthcare, Delhi
+Phone: +91-91122-33445
+Email: neha.sood@maxhealthcare.com
+Website: https://www.maxhealthcare.in/""",
+
+        "malaria": """Dr. Sunita Gupta
+General Medicine
+AIIMS, Delhi
+Phone: +91-98767-89012
+Email: sunita.gupta@aiims.edu
+Website: https://www.aiims.edu/""",
+
+        "chicken pox": """Dr. Anil Deshmukh
+Infectious Disease Specialist
+Jaslok Hospital, Mumbai
+Phone: +91-99888-22334
+Email: anil.deshmukh@jaslokhospital.net
+Website: https://www.jaslokhospital.net/""",
+
+        "dengue": """Dr. Sunita Gupta
+General Medicine
+AIIMS, Delhi
+Phone: +91-98767-89012
+Email: sunita.gupta@aiims.edu
+Website: https://www.aiims.edu/""",
+
+        "typhoid": """Dr. Sunita Gupta
+General Medicine
+AIIMS, Delhi
+Phone: +91-98767-89012
+Email: sunita.gupta@aiims.edu
+Website: https://www.aiims.edu/""",
+
+        "hepatitis a": """Dr. Sameer Joshi
+Liver & Hepatology Specialist
+Medanta, Gurugram
+Phone: +91-87654-32109
+Email: sameer.joshi@medanta.org
+Website: https://www.medanta.org/""",
+
+        "hepatitis b": """Dr. Sameer Joshi
+Liver & Hepatology Specialist
+Medanta, Gurugram
+Phone: +91-87654-32109
+Email: sameer.joshi@medanta.org
+Website: https://www.medanta.org/""",
+
+        "hepatitis c": """Dr. Sameer Joshi
+Liver & Hepatology Specialist
+Medanta, Gurugram
+Phone: +91-87654-32109
+Email: sameer.joshi@medanta.org
+Website: https://www.medanta.org/""",
+
+        "hepatitis d": """Dr. Sameer Joshi
+Liver & Hepatology Specialist
+Medanta, Gurugram
+Phone: +91-87654-32109
+Email: sameer.joshi@medanta.org
+Website: https://www.medanta.org/""",
+
+        "hepatitis e": """Dr. Sameer Joshi
+Liver & Hepatology Specialist
+Medanta, Gurugram
+Phone: +91-87654-32109
+Email: sameer.joshi@medanta.org
+Website: https://www.medanta.org/""",
+
+        "alcoholic hepatitis": """Dr. Sameer Joshi
+Liver & Hepatology Specialist
+Medanta, Gurugram
+Phone: +91-87654-32109
+Email: sameer.joshi@medanta.org
+Website: https://www.medanta.org/""",
+
+        "tuberculosis": """Dr. Rajeev Kumar
+Pulmonology Specialist
+Fortis Hospital, Delhi
+Phone: +91-92233-44556
+Email: rajeev.kumar@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
+
+        "common cold": """Dr. Sunita Gupta
+General Medicine
+AIIMS, Delhi
+Phone: +91-98767-89012
+Email: sunita.gupta@aiims.edu
+Website: https://www.aiims.edu/""",
+
+        "pneumonia": """Dr. Rajeev Kumar
+Pulmonology Specialist
+Fortis Hospital, Delhi
+Phone: +91-92233-44556
+Email: rajeev.kumar@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
+
+        "dimorphic hemmorhoids(piles)": """Dr. Nitin Desai
+General Surgery Specialist
+Apollo Hospitals, Mumbai
+Phone: +91-98876-54321
+Email: nitin.desai@apollohospitals.com
+Website: https://www.apollohospitals.com/""",
+
+        "heart attack": """Dr. Arjun Menon
+Cardiology Specialist
+Apollo Hospitals, Bengaluru
+Phone: +91-98765-43210
+Email: arjun.menon@apollohospitals.com
+Website: https://www.apollohospitals.com/""",
+
+        "varicose veins": """Dr. Shalini Bhatt
+Vascular Surgery Specialist
+Fortis Hospital, Delhi
+Phone: +91-91123-45678
+Email: shalini.bhatt@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
+
+        "hypothyroidism": """Dr. Kavita Rao
+Endocrinology Specialist
+Apollo Hospitals, Chennai
+Phone: +91-98765-43211
+Email: kavita.rao@apollohospitals.com
+Website: https://www.apollohospitals.com/""",
+
+        "hyperthyroidism": """Dr. Kavita Rao
+Endocrinology Specialist
+Apollo Hospitals, Chennai
+Phone: +91-98765-43211
+Email: kavita.rao@apollohospitals.com
+Website: https://www.apollohospitals.com/""",
+
+        "hypoglycemia": """Dr. Kavita Rao
+Endocrinology Specialist
+Apollo Hospitals, Chennai
+Phone: +91-98765-43211
+Email: kavita.rao@apollohospitals.com
+Website: https://www.apollohospitals.com/""",
+
+        "osteoarthristis": """Dr. Vikram Singh
+Orthopedics Specialist
+Medanta, Gurugram
+Phone: +91-90012-34567
+Email: vikram.singh@medanta.org
+Website: https://www.medanta.org/""",
+
+        "arthritis": """Dr. Alka Jain
+Rheumatology Specialist
+Fortis Hospital, Mumbai
+Phone: +91-98876-54322
+Email: alka.jain@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
+
+        "(vertigo) paroymsal positional vertigo": """Dr. Neha Sood
+Neurology Specialist
+Max Healthcare, Delhi
+Phone: +91-91122-33445
+Email: neha.sood@maxhealthcare.com
+Website: https://www.maxhealthcare.in/""",
+
+        "acne": """Dr. Meera Kapoor
+Dermatology Specialist
+Fortis Hospital, Mumbai
+Phone: +91-91234-56789
+Email: meera.kapoor@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
+
+        "urinary tract infection": """Dr. Suresh Patel
+Urology Specialist
+Apollo Hospitals, Ahmedabad
+Phone: +91-98765-11223
+Email: suresh.patel@apollohospitals.com
+Website: https://www.apollohospitals.com/""",
+
+        "psoriasis": """Dr. Meera Kapoor
+Dermatology Specialist
+Fortis Hospital, Mumbai
+Phone: +91-91234-56789
+Email: meera.kapoor@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
+
+        "impetigo": """Dr. Meera Kapoor
+Dermatology Specialist
+Fortis Hospital, Mumbai
+Phone: +91-91234-56789
+Email: meera.kapoor@fortishealth.com
+Website: https://www.fortishealthcare.com/""",
     }
-    return details.get(specialty, "Doctor information not available.")
+    return details.get(specialty.lower(), "Doctor information not available.")
+
 
 
 def show_doctor_info(specialty):
